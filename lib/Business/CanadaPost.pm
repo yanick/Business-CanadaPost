@@ -1,0 +1,901 @@
+#!/usr/bin/perl -w
+
+package Business::CanadaPost;
+
+use strict;
+use LWP;
+use vars qw($VERSION @ISA @EXPORT);
+use Exporter;
+
+@ISA		= qw(Exporter);
+@EXPORT		= qw();
+$VERSION	= '1.01';
+
+=head1 NAME
+
+Business::CanadaPost - A module to fetch shipping costs for Canada Post.
+
+=head1 SYNOPSIS
+
+	use Business::CanadaPost;
+	
+	#initialise object - specifying from postal code, and canada post merchant id
+	my $shiprequest = Business::CanadaPost->new(	merchantid => 'CPC_DEMO_XML',
+							frompostal => 'M1P1C0',
+							testing	   => 1			);
+
+	# add an item to be shipped
+	$shiprequest->additem(quantity 		=> 1,
+				height 		=> 60,
+				width  		=> 15,
+				length 		=> 60,
+				weight 		=> 7,
+				description 	=> 'box o stuff',
+				readytoship 	=> 1);
+
+	# set more parameters on the item being shipped
+	$shiprequest->setcountry('United States');
+	$shiprequest->setprovstate('New York');
+	$shiprequest->settopostalzip('11726');
+	$shiprequest->settocity('New York');
+	$shiprequest->getrequest() || die "Failed calculating shipping rates!\n";
+
+	print "There are " . $shiprequest->getoptioncount() . " available shipping methods.\n";
+
+=head1 DESCRIPTION
+
+Business::CanadaPost is a Perl library created to allow users to fetch real-time options and pricing quotes
+on shipments sent from Canada using Canada Post.
+
+To get off of the development server, you'll need to get an account from Canada Post's "Sell Online" service.
+While testing, use user id CPC_DEMO_XML and specify a parameter of 'testing' with a value of 1 to the new()
+constructor, so it knows to use Canada Post's devel server.  If you don't, and don't have an account, you'll
+only receive errors.
+
+=head1 PREREQUISITES
+
+This module requires C<strict>, C<Exporter>, and C<LWP>.
+
+=head1 EXPORT
+
+None.
+
+=head1 CONSTRUCTOR
+
+=over 4
+
+=item C<new(options)>
+
+Creates a new Business::CanadaPost object.  Different objects available are:
+
+=over 4
+
+=item language
+
+'en' for English, and 'fr' for French. (Default: en)
+
+=item frompostalcode
+
+This is used to override the setting in our sell online profile for the from
+address you would be shipping from.  Format is A1A1A1 (A being any upper-case
+character between A-Z, and 1 being any digit 0-9)
+
+If not specified, it will default to your setting in your Canada Post Sell
+Online(tm) profile.
+
+=item turnaroundtime
+
+Your turnaround time in hours.  This is the amount of time between receiving
+the order and shipping it out.  It is used to create a shipping and delivery
+date for the item.  If none is specified, it will default to what you have set
+in your profile.
+
+If you have nothing set in your profile, it will assume you are shipping next-day.
+
+(Default: none)
+
+=item merchantid
+
+This is your merchant ID assigned to you by Canada Post.  It usually begins with
+CPC_.  You can use CPC_DEMO_XML if you're testing and using Canada Post's test
+servers. (Default: none.  You need to set this or the module will return a fatal
+error.)
+
+=item totalprice
+
+Total value of the shipment you're mailing.  This is used to calculate whether or
+not a signature will be required, and whether it will need to include more insurance
+to cover the item (beyond the $100 included in the original shipment.) (Default: 0.00)
+
+=item units
+
+Possible values are 'metric' and 'imperial'.
+
+If set to metric, you will be specifying height, length, and width in cm, and
+weight in kg.
+
+If set to imperial, you will be specifying height, length, and width in in, and
+weight in lb.
+
+(Default: metric)
+
+=item testing
+ 
+Possible values: 1 or 0.
+
+Specifies whether you're using a production account, or a testing account.  If you're
+in testing mode, you'll be connecting to Canada Post's test servers, which run on
+less stable hardware, on a slower link to the Internet, and are rate-throttled.
+
+(Default: 0)
+
+=item items
+
+An array containing the items in your shipment.  Array elements are:
+
+(quantity, weight, length, width, height, description, readytoship [1 or 0])
+
+readytoship specifies that you have the item already boxed or prepared for shipment.
+
+If this is set to 0, then Canada Post server's will calculate the most appropriate box
+listed in your account profile, and use it for its dimensions and shipping cost.
+
+=cut
+
+sub new # {{{
+{
+	my ($class, %data) = @_;
+
+	my $self = {
+		language	=> 'en',	#canada post supports english (en) and french (fr)
+		frompostalcode	=> '',		#canada post says to send a space if we have no entry...
+		turnaroundtime  => '',
+		merchantid	=> '',
+		totalprice	=> '0.00',
+		units		=> 'metric',	#allows for metric (cm and kg) or imperial (in and lb) measurements.
+		items		=> [],
+		testing		=> 0
+	};
+
+	foreach (keys %data)
+	{
+		$self->{$_} = $data{$_};
+	}
+
+	bless $self, $class;
+
+	return $self;
+} # }}}
+
+=head1 OBJECT METHODS
+
+Most errors are fatal.  The tool tries to guess for you if a value seems
+out of whack.
+
+=over 4
+
+=item C<setlanguage>
+
+Used to change the language.
+
+Example:
+
+	$object->setlanguage('fr'); # changes messages to french.
+
+=cut
+sub setlanguage # {{{
+{
+	my ($self, $lang) = @_;
+
+	$lang = lc($lang);
+	$self->_error(4) unless $lang eq 'fr' or $lang eq 'en' or $lang eq '';
+
+	$self->{'language'} = $lang || 'en';
+} # }}}
+
+=item C<settocity>
+
+Specifies city being shipped to.
+
+Example:
+
+	$object->settocity('New York');
+
+=cut
+
+sub settocity # {{{
+
+{
+	my ($self, $city) = @_;
+	$self->{'city'} = $city;
+} # }}}
+
+=item C<settesting>
+
+Specifies whether account is in testing.
+
+Example:
+
+	$object->settesting(1);
+
+=cut
+
+sub settesting # {{{
+ 
+{
+	my ($self, $testing) = @_;
+
+	$self->{'testing'} = $testing;
+} # }}}
+
+=item C<setcountry>
+
+Specifies country being mailed to.
+
+Example:
+
+	$object->setcountry('United States');
+
+=cut
+
+sub setcountry # {{{
+
+{
+	my ($self, $country) = @_;
+	$self->{'country'} = $country;
+} # }}}
+
+=item C<setmerchantid>
+
+Specifies Canada Post merchant ID.
+
+Example:
+
+	$object->setmerchantid('CPC_DEMO_XML');
+
+=cut
+
+sub setmerchantid # {{{
+
+{
+	my ($self, $id) = @_;
+	
+	$self->{'merchantid'} = $id || ' ';
+} # }}}
+
+=item C<setunits>
+
+Specifies imperial or metric measurements.
+
+Example:
+
+	$object->setunits('imperial');
+
+=cut
+
+sub setunits # {{{
+
+{
+	my ($self, $units) = @_;
+
+#FIXME -- make it go through each item and convert to/from metric if they change!
+	$units = lc($units);
+	$self->_error(5) unless $units eq 'metric' or $units eq 'imperial';
+	$self->{'units'} = $units;
+} # }}}
+
+=item C<setfrompostalcode>
+
+Specifies postal code item is being shipped from.
+
+Example:
+
+	$object->setfrompostalcode(''); # will reset postal code back to default set in canada post profile
+
+=cut
+
+sub setfrompostalzip # {{{
+
+{
+	my ($self, $code) = @_;
+
+	$self->{'frompostalcode'} = $code || ' ';
+} # }}}
+
+=item C<settopostalcode>
+
+Specifies postal code/zip code item is being shipped to.
+
+Example:
+
+	$object->settopostalcode('N2G5M4');
+
+=cut
+
+sub settopostalzip # {{{
+
+{
+	my ($self, $code) = @_;
+
+	$self->{'postalcode'} = $code || ' ';
+} # }}}
+
+=item C<setprovstate>
+
+Specifies province/state being shipped to.
+
+Example:
+
+	$object->settopostalcode('Ontario');
+
+=cut
+
+sub setprovstate # {{{
+
+{
+	my ($self, $province) = @_;
+	$self->{'provstate'} = $province || ' ';
+} # }}}
+
+=item C<setturnaroundtime>
+
+Specifies turnaround time in hours.
+
+Example:
+
+	$object->setturnaroundtime(24);
+
+=cut
+
+sub setturnaroundtime # {{{
+
+{
+	my ($self, $code) = @_;
+	$self->{'turnaroundtime'} = $code || ' ';
+} # }}}
+
+=item C<settotalprice>
+
+Specifies total value of items being shipped.
+
+Example:
+
+	$object->settotalprice(5.50);
+
+=cut
+
+sub settotalprice # {{{
+
+{
+	my ($self, $price) = @_;
+	$self->{'totalprice'} = sprintf('%01.2f', $price) || '0.00';
+} # }}}
+
+=item C<additem>
+
+Adds an item to be shipped to the request.
+
+Example:
+
+	$object->additem(length => 5,
+			 height => 3,
+			 width  => 2,
+			 weight => 5,
+			 description => "box of cookies",
+			 readytoship => 1,
+			 quantity => 1);
+
+Weight, length, height, and width are the only requirements.
+
+If not specified, quantity will default to 1, readytoship will
+default to 0, and description will default to an empty string.
+
+=cut
+
+sub additem # {{{
+{
+	my ($self, %item) = @_;
+
+	$item{'length'} and $item{'width'} and $item{'height'} or
+		$self->_error(6);
+
+	my @currentitems = @{$self->{'items'}} if ref $self->{'items'};
+
+	#canadapost specifies that the longest dimension is the length,
+	#second longest is the width and shortest is height.
+	my @dimensions = ($item{'length'}, $item{'height'}, $item{'width'});
+	($item{'length'}, $item{'width'}, $item{'height'}) = reverse sort @dimensions;
+
+	my $metric = $self->{'units'} eq 'imperial' ? 0 : 1;
+
+	push (@currentitems, $item{'quantity'} || 1,
+				$metric ? $item{'weight'} : $item{'weight'} * .45359237, # 1lb = .45359237kg
+				$metric ? $item{'length'} : $item{'length'} * 2.54,	 # 1in = 2.54cm
+				$metric ? $item{'width'}  : $item{'width'}  * 2.54,
+				$metric ? $item{'height'} : $item{'height'} * 2.54,
+				$item{'description'} || ' ',
+				$item{'readytoship'} ? '<readyToShip />' : '');
+
+	$self->{'items'} = \@currentitems;
+} # }}}
+
+=item C<getrequest>
+
+Builds request, sends it to Canada Post, and parses the results.
+
+Example:
+
+	$object->getrequest();
+
+returns 1 on success.
+
+=cut
+
+sub getrequest # {{{
+
+{
+	my $self = shift;
+	my $xmlfile = $self->buildXML();
+
+	my $lwp = LWP::UserAgent->new();
+	my $ipaddress = $self->{'testing'} == 1 ? '206.191.4.228' : '209.191.36.73';
+	my $result = $lwp->post("http://$ipaddress:30000", { 'XMLRequest' => $xmlfile });
+	$self->_error(8) unless $result->is_success;
+
+	my $raw_data = $result->content();
+
+	$self->parseXML($raw_data);
+
+	return 1;
+} # }}}
+
+sub parseXML # {{{
+
+{
+	my ($self, $xml) = @_;
+
+	my ($parcel) = $xml =~ /<eparcel>(.+)<\/eparcel>/s;
+	my ($resultcode) = $parcel =~ /<statusCode>[^<]+<\/statusCode>/s;
+	unless ($resultcode == 1)
+	{
+		my ($resultmessage) = $parcel =~ /<statusMessage>[^<]+<\/statusMessage>/s;
+		$self->_error($resultmessage);
+	}
+	my ($products) = $parcel =~ /<product(.+)<\/product>/s; #should be greedy and get them all..
+	my @options;
+	foreach my $product (split /<\/product>\s+<product/s, $products)
+	{
+		my ($name)	= $product =~ /<name>([^<]+)<\/name>/s;
+		my ($rate)	= $product =~ /<rate>([^<]+)<\/rate>/s;
+		my ($shipdate)	= $product =~ /<shippingDate>([^<]+)<\/shippingDate>/s;
+		my ($delvdate)	= $product =~ /<deliveryDate>([^<]+)<\/deliveryDate>/s;
+		my ($dayofweek)	= $product =~ /<deliveryDayOfWeek>([^<]+)<\/deliveryDayOfWeek>/s;
+		my ($nextdayam)	= $product =~ /<nextDayAM>([^<]+)<\/nextDayAM>/s;
+		my $estdays     = _getdaysbetween($shipdate, $delvdate);
+		push (@options, $name, $rate, $shipdate, $delvdate, $dayofweek, $nextdayam, $estdays);
+	}
+
+	$self->{'shippingoptioncount'} = scalar(@options) / 7;
+	$self->{'shiprates'} = \@options;
+
+	my ($soptions) = $parcel =~ /<shippingOptions>(.+)<\/shippingOptions>/s;
+	if ($soptions =~ /<insurance>([^<]+)<\/insurance>/)
+	{
+		$self->{'shipinsurance'} = $1 eq 'No' ? 0 : 1;
+	}
+	if ($soptions =~ /<deliveryConfirmation>([^<]+)<\/deliveryConfirmation>/)
+	{
+		$self->{'shipconfirm'} = $1 eq 'No' ? 0 : 1;
+	}
+	if ($soptions =~ /<signature>([^<]+)<\/signature>/)
+	{
+		$self->{'signature'} = $1 eq 'No' ? 0 : 1;
+	}
+
+	$self->{'shipcomments'} = $1 if $parcel =~ /<comment>([^<])+<\/comment>/s;
+} # }}}
+
+=item C<getoptioncount>
+
+Returns number of available shipping options.
+
+Example:
+
+	my $available_options = $object->getoptioncount();
+
+
+=cut
+
+sub getoptioncount # {{{
+{
+	my $self = shift;
+	return $self->{'shippingoptioncount'};
+} # }}}
+
+=item C<getsignature>
+
+Returns 1 or 0 based on whether or not a signature would be required for these deliveries.
+
+Example:
+
+	my $signature_required = $object->getsignature();
+
+=cut
+
+
+sub getsignature # {{{
+
+{
+	my $self = shift;
+	return $self->{'signature'};
+} # }}}
+
+=item C<getshipname>
+
+Receives an option number between 1 and $object->getoptioncount() and returns that
+option's name.
+
+Example:
+
+	print "First option available is: " . $object->getshipname(1) . "\n";
+
+=cut
+
+sub getshipname # {{{
+
+{
+	my $self = shift;
+	my $shipmentnum = shift || 1;
+	$shipmentnum--; #we're looking for the offset in the array...
+
+	my @options = @{$self->{'shiprates'}};
+	return $options[$shipmentnum * 7]
+} # }}}
+
+=item C<getshiprate>
+
+Operates the same as C<getshipname>, but returns cost of that shipping method.
+
+Example:
+
+	print "First option would cost: " . $object->getshiprate(1) . " to ship.\n";
+
+returns 1 on success.
+
+=cut
+
+sub getshiprate # {{{
+
+{
+	my $self = shift;
+	my $shipmentnum = shift || 1;
+	$shipmentnum--;
+	my @options = @{$self->{'shiprates'}};
+	return $options[$shipmentnum * 7 + 1]
+} # }}}
+
+=item C<getshipdate>
+
+Operates the same as C<getshipname>, but returns assumed shipment date.
+
+Example:
+
+	print "Item would be shipped out on " . $object->getshipdate(1) . "\n";
+
+=cut
+
+
+sub getshipdate # {{{
+
+{
+	my $self = shift;
+	my $shipmentnum = shift || 1;
+	$shipmentnum--;
+	my @options = @{$self->{'shiprates'}};
+	return $options[$shipmentnum * 7 + 2]
+} # }}}
+
+=item C<getdelvdate>
+
+Operates the same as C<getshipname>, but returns when the approximate
+delivery date would be based on a shipping date of $object->getshipdate();
+
+Example:
+
+	print "Assuming a delivery date of " . $object->getshipdate(1) .
+		", this item would arrive on: " . $object->getdelvdate(1) . "\n";
+
+=cut
+
+sub getdelvdate # {{{
+
+{
+	my $self = shift;
+	my $shipmentnum = shift || 1;
+	$shipmentnum--;
+	my @options = @{$self->{'shiprates'}};
+	return $options[$shipmentnum * 7 + 3]
+} # }}}
+
+=item C<getdayofweek>
+
+Operates the same as C<getshipname>, but returns which day of the week
+$object->getdelvdate() lands on numerically. (1 .. 6; 1 == Sunday,
+6 == Saturday)
+
+Example:
+
+	print "Your item would likely be delivered on the " .
+		$object->getdayofweek(1) . " day of the week.\n";
+
+=cut
+
+
+sub getdayofweek # {{{
+
+{
+	my $self = shift;
+	my $shipmentnum = shift || 1;
+	$shipmentnum--;
+	my @options = @{$self->{'shiprates'}};
+	return $options[$shipmentnum * 7 + 4]
+} # }}}
+=item C<getnextdayam>
+
+Operates the same as C<getshipname>, but returns whether or not
+the current option provides for next day AM delivery service.
+
+Example:
+
+	printf("This item is %savailable for next day delivery\n",
+			$object->getnextdayam(1) == 1 ? '' : 'NOT ');
+
+=cut
+
+
+sub getnextdayam # {{{
+
+{
+	my $self = shift;
+	my $shipmentnum = shift || 1;
+	$shipmentnum--;
+	my @options = @{$self->{'shiprates'}};
+	return $options[$shipmentnum * 7 + 5]
+} # }}}
+=item C<getestshipdays>
+
+Operates the same as C<getshipname>, but returns estimated
+number of days required to ship the item.
+
+Example:
+
+	print "This shipping method would take approximately: " . $object->getestshipdays() .
+		" days to arrive.\n";
+
+=cut
+
+
+sub getestshipdays # {{{
+
+{
+	my $self = shift;
+	my $shipmentnum = shift || 1;
+	$shipmentnum--;
+	my @options = @{$self->{'shiprates'}};
+	return $options[$shipmentnum * 7 + 6]
+} # }}}
+=item C<getconfirmation>
+
+Returns whether or not delivery confirmation is included in price quotes.
+
+Example:
+
+	my $confirmation_included = $object->getconfirmation();
+
+=cut
+
+
+sub getconfirmation # {{{
+
+{
+	my $self = shift;
+	return $self->{'shipconfirm'};
+} # }}}
+
+=item C<getcomments>
+
+Returns any extra comments Canada Post might include with your quote.
+
+Example:
+
+	my $extra_info = $object->getcomments();
+
+=cut
+
+sub getcomments # {{{
+
+{
+	my $self = shift;
+	return $self->{'shipcomments'};
+} # }}}
+
+sub _error # {{{
+
+{
+	my ($self, $msgnum) = @_;
+	my @englishmessages = ('You need to specify some items to ship!',
+				'You must specify a valid postal code for Canadian shipments!',
+				'You must specify a state for American shipments!',
+				'You must specify the country being shipped to!',
+				'Valid languages are English and French',
+				'Valid units are metric (cm and kg) or imperial (in and lb)',
+				'You must specify a height, width, and length for each item.',
+				'You must specify your Canada Post merchant ID!',
+				'Failed sending to Canada Posts servers!');
+	my @frenchmessages  = ('Vous devez indiquer quelques pour transporter!',
+				'Vous devez indiquer un code postal valide pour les expéditions Canadiannes!',
+				'Vous devez indiquer un état pour les expéditions américaines!',
+				'Vous devez indiquer le pays que vous voulez embarquer à!',
+				'Les langues valides sont Anglaises et Françaises',
+				'Les unités valides sont métriques (cm et kg) ou impériales (po et lv)',
+				'Vous devez indiquer une taille, une largeur, et une longueur pour chaque article.',
+				'Vous devez indiquer votre identification du Postes Canada!',
+				'Envoi échoué aux serveurs du Postes Canada!');
+
+	if ($msgnum == 0)
+	{
+		push (@englishmessages, $msgnum);
+		push (@frenchmessages, $msgnum);
+		$msgnum = scalar(@englishmessages) - 1;
+	}
+
+	my $errorword = $self->{'language'} eq 'fr' ? 'Erreur' : 'Error';
+
+	die sprintf("%s: %s\n",
+			$errorword,
+			$self->{'language'} eq 'fr' ? $frenchmessages[$msgnum] :
+							$englishmessages[$msgnum]);
+} # }}}
+
+sub _getdaysbetween # {{{
+
+{
+	my ($fromdate, $todate) = @_;
+	my @daysinmonth = (0, 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31);
+
+	my ($fromyear, $frommon, $fromday) = split /-/, $fromdate;
+	my ($toyear, $tomon, $today) = split /-/, $todate;
+
+	return 0 if $fromyear == $toyear and $frommon == $tomon and $fromday == $today;
+	my $days;
+	
+	do
+	{
+		$days++;
+		$fromday++;
+		$daysinmonth[2] = _isleapyear($fromyear) ? 29 : 28;
+		$fromday = 1, $frommon++ if $fromday > $daysinmonth[$frommon];
+		$frommon = 1, $fromyear++ if $frommon == 13;
+	} until $fromyear == $toyear and $frommon == $tomon and $fromday == $today;
+
+	return $days;
+} # }}}
+
+sub _isleapyear # {{{
+
+{
+	my $year = shift;
+
+        return 1 if $year % 4 == 0 and $year % 400 == 0;
+        return 0 if $year % 100 == 0;
+        return 1 if $year % 4 == 0;
+        return 0;
+} # }}}
+
+sub buildXML # {{{
+
+{
+	my $self = shift;
+	
+	my @items = @{$self->{'items'}};
+	$self->_error(0) unless @items;
+
+	# language can be en or fr (this is Canada!)
+	my $xmlfile = sprintf('<?xml version="1.0" ?>
+<eparcel>
+	<language>%s</language>
+	<ratesAndServicesRequest>
+		<merchantCPCID>%s</merchantCPCID>
+		%s
+		%s
+		<itemsPrice>%.2f</itemsPrice>%s',
+		$self->{'language'} || 'en',
+		$self->{'merchantid'} || $self->_error(7),
+		$self->{'frompostalcode'} ? "<fromPostalCode>" . $self->{'frompostalcode'} . "</fromPostalCode>\n" : '',
+		$self->{'turnaroundtime'} ? "<turnAroundTime>" . $self->{'turnaroundtime'} . "</turnAroundTime>\n" : '',
+		$self->{'totalprice'} || '0.00',
+	   	"\n");
+
+	
+	$xmlfile .= "		<lineItems>\n";
+	for (my $n = 0; $n < @items; $n += 7)
+	{
+		$xmlfile .= sprintf("			<item>
+				<quantity>%d</quantity>
+				<weight>%01.2f</weight>
+				<length>%01.2f</length>
+				<width>%01.2f</width>
+				<height>%01.2f</height>
+				<description>%s</description>
+				%s
+			</item>\n",
+			@items[$n .. $n+6]);
+	}
+	$xmlfile .= "		</lineItems>\n";
+
+	if (!$self->{'country'} or $self->{'country'} =~ /^\s*$/) # no country specified...
+	{
+		$self->_error(3);
+	}
+	elsif (uc($self->{'country'}) eq 'CANADA' or uc($self->{'country'}) eq 'CA')
+	{
+		#canada post docs state that only postal code must exist for canadian shipments
+		$self->{'postalcode'} =~ s/[^\d\w]//g;
+		$self->{'postalcode'} =~ /^\w\d\w\d\w\d$/ 
+			or $self->_error(1);
+
+	}
+	elsif (uc($self->{'country'}) eq 'UNITED STATES' or uc($self->{'country'} eq 'US')
+			or uc($self->{'country'}) eq 'ÉTATS-UNIS')
+	{
+		#canada post says that all they require for now is country and provorstate; however,
+		#zipcodes will be used in the future...
+		$self->{'provstate'} or $self->_error(2);
+		$self->{'postalcode'} ||= ' ';
+		$self->{'postalcode'} =~ s/\D//g;
+	}
+			
+	$xmlfile .= sprintf("		<city>%s</city>
+		<provOrState>%s</provOrState>
+		<country>%s</country>
+		<postalCode>%s</postalCode>
+	</ratesAndServicesRequest>
+</eparcel>",
+	$self->{'city'} || ' ',
+	$self->{'provstate'} || ' ',
+	$self->{'country'},
+	$self->{'postalcode'} || ' ');
+
+	return $xmlfile;
+} # }}}
+
+1;
+
+=head1 BUGS
+
+Probably lots.  E-mail me at <pause@datademons.com> should you locate any.
+
+=head1 AUTHOR
+
+This module was written by Justin Wheeler <pause@datademons.com>  Feel free
+to e-mail me with any comments/questions/concerns/ideas/etc.
+
+For more information on how Canada Post's XML shipping system works, please
+see http://206.191.4.228/DevelopersResources
+
+Copyright (C) 2005 Justin Wheeler / datademons
+
+This program is free software; you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, version 2.
+
+This program is distributed in the hope that it will be useful, but WITHOUT ANY
+WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+PARTICULAR PURPOSE. See the GNU General Public License for more details,
+available at http://www.gnu.org/licenses/gpl.html.
+
+=cut
+
+__END__
+
+# vim:foldmethod=marker:ts=8

@@ -1,0 +1,7 @@
+Revision history for Perl extension Business::CanadaPost.
+
+1.01  Sat Jun 04 11:05:36 2005
+	- Renamed to Business::CanadaPost for CPAN.
+
+1.00  Tue May 31 15:28:46 2005
+	- First release.

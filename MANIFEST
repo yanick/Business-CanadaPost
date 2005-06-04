@@ -1,0 +1,6 @@
+lib/Business/CanadaPost.pm
+Makefile.PL
+README
+t/Business-CanadaPost.t
+Changes
+MANIFEST
