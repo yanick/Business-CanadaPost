@@ -1,5 +1,16 @@
 Revision history for Perl extension Business::CanadaPost.
 
+1.02  Thu Jun 09 22:10:17 2005
+	- Fixed some bugs including:
+		- Bad regex for CanadaPost comments.
+		- Fixed a function name. (getfrompostalcode)
+		- Fixed a bug when Canada Post returns an invalid date
+		  (ie '1 to 3 months') for estimated delivery date.
+		- Fixed getnextdayam to properly return 1 or 0.
+	- Added getinsurance.
+	- Made it set an error variable on error instead of it
+	  being fatal.
+
 1.01  Sat Jun 04 11:05:36 2005
 	- Renamed to Business::CanadaPost for CPAN.
 

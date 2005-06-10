@@ -9,7 +9,7 @@ use Exporter;
 
 @ISA		= qw(Exporter);
 @EXPORT		= qw();
-$VERSION	= '1.01';
+$VERSION	= '1.02';
 
 =head1 NAME
 
@@ -38,8 +38,7 @@ Business::CanadaPost - A module to fetch shipping costs for Canada Post.
 	$shiprequest->setprovstate('New York');
 	$shiprequest->settopostalzip('11726');
 	$shiprequest->settocity('New York');
-	$shiprequest->getrequest() || die "Failed calculating shipping rates!\n";
-
+	$shiprequest->getrequest() || print "Failed sending request: " . $shiprequest->geterror() . "\n"; 
 	print "There are " . $shiprequest->getoptioncount() . " available shipping methods.\n";
 
 =head1 DESCRIPTION
@@ -174,6 +173,24 @@ out of whack.
 
 =over 4
 
+=item C<geterror>
+
+Used to fetch the error set when a function return 0 for failure.
+
+Example:
+
+	$object->getrequest or print "Error: " . $object->geterror() . "\n";
+
+=cut
+
+sub geterror # {{{
+{
+	my $self = shift;
+	my $error = $self->{'error'};
+	$self->{'error'} = ''; #clear it once we've sent it.
+	return $error;
+} # }}}
+
 =item C<setlanguage>
 
 Used to change the language.
@@ -188,7 +205,7 @@ sub setlanguage # {{{
 	my ($self, $lang) = @_;
 
 	$lang = lc($lang);
-	$self->_error(4) unless $lang eq 'fr' or $lang eq 'en' or $lang eq '';
+	return $self->_error(4) unless $lang eq 'fr' or $lang eq 'en' or $lang eq '';
 
 	$self->{'language'} = $lang || 'en';
 } # }}}
@@ -280,7 +297,7 @@ sub setunits # {{{
 
 #FIXME -- make it go through each item and convert to/from metric if they change!
 	$units = lc($units);
-	$self->_error(5) unless $units eq 'metric' or $units eq 'imperial';
+	return $self->_error(5) unless $units eq 'metric' or $units eq 'imperial';
 	$self->{'units'} = $units;
 } # }}}
 
@@ -294,7 +311,7 @@ Example:
 
 =cut
 
-sub setfrompostalzip # {{{
+sub setfrompostalcode # {{{
 
 {
 	my ($self, $code) = @_;
@@ -397,7 +414,7 @@ sub additem # {{{
 	my ($self, %item) = @_;
 
 	$item{'length'} and $item{'width'} and $item{'height'} or
-		$self->_error(6);
+		return $self->_error(6);
 
 	my @currentitems = @{$self->{'items'}} if ref $self->{'items'};
 
@@ -432,15 +449,14 @@ returns 1 on success.
 =cut
 
 sub getrequest # {{{
-
 {
 	my $self = shift;
-	my $xmlfile = $self->buildXML();
+	my $xmlfile = $self->buildXML() or return $self->_error($self->{'error'});
 
 	my $lwp = LWP::UserAgent->new();
 	my $ipaddress = $self->{'testing'} == 1 ? '206.191.4.228' : '209.191.36.73';
 	my $result = $lwp->post("http://$ipaddress:30000", { 'XMLRequest' => $xmlfile });
-	$self->_error(8) unless $result->is_success;
+	return $self->_error(8) unless $result->is_success;
 
 	my $raw_data = $result->content();
 
@@ -459,7 +475,7 @@ sub parseXML # {{{
 	unless ($resultcode == 1)
 	{
 		my ($resultmessage) = $parcel =~ /<statusMessage>[^<]+<\/statusMessage>/s;
-		$self->_error($resultmessage);
+		return $self->_error($resultmessage);
 	}
 	my ($products) = $parcel =~ /<product(.+)<\/product>/s; #should be greedy and get them all..
 	my @options;
@@ -472,6 +488,8 @@ sub parseXML # {{{
 		my ($dayofweek)	= $product =~ /<deliveryDayOfWeek>([^<]+)<\/deliveryDayOfWeek>/s;
 		my ($nextdayam)	= $product =~ /<nextDayAM>([^<]+)<\/nextDayAM>/s;
 		my $estdays     = _getdaysbetween($shipdate, $delvdate);
+		$estdays = 'Unknown' if $estdays == -1;
+		$nextdayam = $nextdayam eq 'true' ? 1 : 0;
 		push (@options, $name, $rate, $shipdate, $delvdate, $dayofweek, $nextdayam, $estdays);
 	}
 
@@ -492,7 +510,7 @@ sub parseXML # {{{
 		$self->{'signature'} = $1 eq 'No' ? 0 : 1;
 	}
 
-	$self->{'shipcomments'} = $1 if $parcel =~ /<comment>([^<])+<\/comment>/s;
+	$self->{'shipcomments'} = $1 if $parcel =~ /<comment>([^<]+)<\/comment>/s;
 } # }}}
 
 =item C<getoptioncount>
@@ -529,6 +547,24 @@ sub getsignature # {{{
 	my $self = shift;
 	return $self->{'signature'};
 } # }}}
+
+=item C<getinsurance>
+
+Returns 1 or 0 based on whether or not extra insurance coverage is required (and included) in prices.
+
+Example:
+
+	my $insurance_included = $object->getinsurance();
+
+=cut
+
+sub getinsurance # {{{
+
+{
+	my $self = shift;
+	return $self->{'shipinsurance'};
+} # }}}
+
 
 =item C<getshipname>
 
@@ -640,6 +676,7 @@ sub getdayofweek # {{{
 	my @options = @{$self->{'shiprates'}};
 	return $options[$shipmentnum * 7 + 4]
 } # }}}
+
 =item C<getnextdayam>
 
 Operates the same as C<getshipname>, but returns whether or not
@@ -662,6 +699,7 @@ sub getnextdayam # {{{
 	my @options = @{$self->{'shiprates'}};
 	return $options[$shipmentnum * 7 + 5]
 } # }}}
+
 =item C<getestshipdays>
 
 Operates the same as C<getshipname>, but returns estimated
@@ -684,6 +722,7 @@ sub getestshipdays # {{{
 	my @options = @{$self->{'shiprates'}};
 	return $options[$shipmentnum * 7 + 6]
 } # }}}
+
 =item C<getconfirmation>
 
 Returns whether or not delivery confirmation is included in price quotes.
@@ -749,12 +788,10 @@ sub _error # {{{
 		$msgnum = scalar(@englishmessages) - 1;
 	}
 
-	my $errorword = $self->{'language'} eq 'fr' ? 'Erreur' : 'Error';
-
-	die sprintf("%s: %s\n",
-			$errorword,
+	$self->{'error'} = sprintf("%s\n",
 			$self->{'language'} eq 'fr' ? $frenchmessages[$msgnum] :
 							$englishmessages[$msgnum]);
+	return 0;
 } # }}}
 
 sub _getdaysbetween # {{{
@@ -767,6 +804,8 @@ sub _getdaysbetween # {{{
 	my ($toyear, $tomon, $today) = split /-/, $todate;
 
 	return 0 if $fromyear == $toyear and $frommon == $tomon and $fromday == $today;
+	return -1 unless $fromyear and $frommon and $fromday and $toyear and $tomon and $today;
+
 	my $days;
 	
 	do
@@ -798,7 +837,7 @@ sub buildXML # {{{
 	my $self = shift;
 	
 	my @items = @{$self->{'items'}};
-	$self->_error(0) unless @items;
+	return $self->_error(0) unless @items;
 
 	# language can be en or fr (this is Canada!)
 	my $xmlfile = sprintf('<?xml version="1.0" ?>
@@ -810,7 +849,7 @@ sub buildXML # {{{
 		%s
 		<itemsPrice>%.2f</itemsPrice>%s',
 		$self->{'language'} || 'en',
-		$self->{'merchantid'} || $self->_error(7),
+		$self->{'merchantid'} || return $self->_error(7),
 		$self->{'frompostalcode'} ? "<fromPostalCode>" . $self->{'frompostalcode'} . "</fromPostalCode>\n" : '',
 		$self->{'turnaroundtime'} ? "<turnAroundTime>" . $self->{'turnaroundtime'} . "</turnAroundTime>\n" : '',
 		$self->{'totalprice'} || '0.00',
@@ -835,14 +874,14 @@ sub buildXML # {{{
 
 	if (!$self->{'country'} or $self->{'country'} =~ /^\s*$/) # no country specified...
 	{
-		$self->_error(3);
+		return $self->_error(3);
 	}
 	elsif (uc($self->{'country'}) eq 'CANADA' or uc($self->{'country'}) eq 'CA')
 	{
 		#canada post docs state that only postal code must exist for canadian shipments
 		$self->{'postalcode'} =~ s/[^\d\w]//g;
 		$self->{'postalcode'} =~ /^\w\d\w\d\w\d$/ 
-			or $self->_error(1);
+			or return $self->_error(1);
 
 	}
 	elsif (uc($self->{'country'}) eq 'UNITED STATES' or uc($self->{'country'} eq 'US')
@@ -850,7 +889,7 @@ sub buildXML # {{{
 	{
 		#canada post says that all they require for now is country and provorstate; however,
 		#zipcodes will be used in the future...
-		$self->{'provstate'} or $self->_error(2);
+		$self->{'provstate'} or return $self->_error(2);
 		$self->{'postalcode'} ||= ' ';
 		$self->{'postalcode'} =~ s/\D//g;
 	}
