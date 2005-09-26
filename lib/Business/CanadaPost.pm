@@ -9,7 +9,7 @@ use Exporter;
 
 @ISA		= qw(Exporter);
 @EXPORT		= qw();
-$VERSION	= '1.02';
+$VERSION	= '1.04';
 
 =head1 NAME
 
@@ -61,13 +61,11 @@ None.
 
 =head1 CONSTRUCTOR
 
-=over 4
-
-=item C<new(options)>
+=head2 C<new(options)>
 
 Creates a new Business::CanadaPost object.  Different objects available are:
 
-=over 4
+=over 8
 
 =item language
 
@@ -171,9 +169,7 @@ sub new # {{{
 Most errors are fatal.  The tool tries to guess for you if a value seems
 out of whack.
 
-=over 4
-
-=item C<geterror>
+=head2 C<geterror>
 
 Used to fetch the error set when a function return 0 for failure.
 
@@ -191,7 +187,7 @@ sub geterror # {{{
 	return $error;
 } # }}}
 
-=item C<setlanguage>
+=head2 C<setlanguage>
 
 Used to change the language.
 
@@ -210,7 +206,7 @@ sub setlanguage # {{{
 	$self->{'language'} = $lang || 'en';
 } # }}}
 
-=item C<settocity>
+=head2 C<settocity>
 
 Specifies city being shipped to.
 
@@ -227,7 +223,7 @@ sub settocity # {{{
 	$self->{'city'} = $city;
 } # }}}
 
-=item C<settesting>
+=head2 C<settesting>
 
 Specifies whether account is in testing.
 
@@ -245,7 +241,7 @@ sub settesting # {{{
 	$self->{'testing'} = $testing;
 } # }}}
 
-=item C<setcountry>
+=head2 C<setcountry>
 
 Specifies country being mailed to.
 
@@ -262,7 +258,7 @@ sub setcountry # {{{
 	$self->{'country'} = $country;
 } # }}}
 
-=item C<setmerchantid>
+=head2 C<setmerchantid>
 
 Specifies Canada Post merchant ID.
 
@@ -280,7 +276,7 @@ sub setmerchantid # {{{
 	$self->{'merchantid'} = $id || ' ';
 } # }}}
 
-=item C<setunits>
+=head2 C<setunits>
 
 Specifies imperial or metric measurements.
 
@@ -301,7 +297,7 @@ sub setunits # {{{
 	$self->{'units'} = $units;
 } # }}}
 
-=item C<setfrompostalcode>
+=head2 C<setfrompostalcode>
 
 Specifies postal code item is being shipped from.
 
@@ -319,7 +315,7 @@ sub setfrompostalcode # {{{
 	$self->{'frompostalcode'} = $code || ' ';
 } # }}}
 
-=item C<settopostalcode>
+=head2 C<settopostalcode>
 
 Specifies postal code/zip code item is being shipped to.
 
@@ -337,7 +333,7 @@ sub settopostalzip # {{{
 	$self->{'postalcode'} = $code || ' ';
 } # }}}
 
-=item C<setprovstate>
+=head2 C<setprovstate>
 
 Specifies province/state being shipped to.
 
@@ -354,7 +350,7 @@ sub setprovstate # {{{
 	$self->{'provstate'} = $province || ' ';
 } # }}}
 
-=item C<setturnaroundtime>
+=head2 C<setturnaroundtime>
 
 Specifies turnaround time in hours.
 
@@ -371,7 +367,7 @@ sub setturnaroundtime # {{{
 	$self->{'turnaroundtime'} = $code || ' ';
 } # }}}
 
-=item C<settotalprice>
+=head2 C<settotalprice>
 
 Specifies total value of items being shipped.
 
@@ -388,7 +384,7 @@ sub settotalprice # {{{
 	$self->{'totalprice'} = sprintf('%01.2f', $price) || '0.00';
 } # }}}
 
-=item C<additem>
+=head2 C<additem>
 
 Adds an item to be shipped to the request.
 
@@ -436,7 +432,7 @@ sub additem # {{{
 	$self->{'items'} = \@currentitems;
 } # }}}
 
-=item C<getrequest>
+=head2 C<getrequest>
 
 Builds request, sends it to Canada Post, and parses the results.
 
@@ -454,15 +450,13 @@ sub getrequest # {{{
 	my $xmlfile = $self->buildXML() or return $self->_error($self->{'error'});
 
 	my $lwp = LWP::UserAgent->new();
-	my $ipaddress = $self->{'testing'} == 1 ? '206.191.4.228' : '209.191.36.73';
+	my $ipaddress = $self->{'testing'} == 1 ? '206.191.4.228' : '216.191.36.73';
 	my $result = $lwp->post("http://$ipaddress:30000", { 'XMLRequest' => $xmlfile });
 	return $self->_error(8) unless $result->is_success;
 
 	my $raw_data = $result->content();
 
-	$self->parseXML($raw_data);
-
-	return 1;
+	return $self->parseXML($raw_data);
 } # }}}
 
 sub parseXML # {{{
@@ -471,10 +465,10 @@ sub parseXML # {{{
 	my ($self, $xml) = @_;
 
 	my ($parcel) = $xml =~ /<eparcel>(.+)<\/eparcel>/s;
-	my ($resultcode) = $parcel =~ /<statusCode>[^<]+<\/statusCode>/s;
+	my ($resultcode) = $parcel =~ /<statusCode>([^<]+)<\/statusCode>/s;
 	unless ($resultcode == 1)
 	{
-		my ($resultmessage) = $parcel =~ /<statusMessage>[^<]+<\/statusMessage>/s;
+		my ($resultmessage) = $parcel =~ /<statusMessage>([^<]+)<\/statusMessage>/s;
 		return $self->_error($resultmessage);
 	}
 	my ($products) = $parcel =~ /<product(.+)<\/product>/s; #should be greedy and get them all..
@@ -511,9 +505,10 @@ sub parseXML # {{{
 	}
 
 	$self->{'shipcomments'} = $1 if $parcel =~ /<comment>([^<]+)<\/comment>/s;
+	return 1;
 } # }}}
 
-=item C<getoptioncount>
+=head2 C<getoptioncount>
 
 Returns number of available shipping options.
 
@@ -530,7 +525,7 @@ sub getoptioncount # {{{
 	return $self->{'shippingoptioncount'};
 } # }}}
 
-=item C<getsignature>
+=head2 C<getsignature>
 
 Returns 1 or 0 based on whether or not a signature would be required for these deliveries.
 
@@ -548,7 +543,7 @@ sub getsignature # {{{
 	return $self->{'signature'};
 } # }}}
 
-=item C<getinsurance>
+=head2 C<getinsurance>
 
 Returns 1 or 0 based on whether or not extra insurance coverage is required (and included) in prices.
 
@@ -566,7 +561,7 @@ sub getinsurance # {{{
 } # }}}
 
 
-=item C<getshipname>
+=head2 C<getshipname>
 
 Receives an option number between 1 and $object->getoptioncount() and returns that
 option's name.
@@ -588,7 +583,7 @@ sub getshipname # {{{
 	return $options[$shipmentnum * 7]
 } # }}}
 
-=item C<getshiprate>
+=head2 C<getshiprate>
 
 Operates the same as C<getshipname>, but returns cost of that shipping method.
 
@@ -610,7 +605,7 @@ sub getshiprate # {{{
 	return $options[$shipmentnum * 7 + 1]
 } # }}}
 
-=item C<getshipdate>
+=head2 C<getshipdate>
 
 Operates the same as C<getshipname>, but returns assumed shipment date.
 
@@ -631,7 +626,7 @@ sub getshipdate # {{{
 	return $options[$shipmentnum * 7 + 2]
 } # }}}
 
-=item C<getdelvdate>
+=head2 C<getdelvdate>
 
 Operates the same as C<getshipname>, but returns when the approximate
 delivery date would be based on a shipping date of $object->getshipdate();
@@ -653,7 +648,7 @@ sub getdelvdate # {{{
 	return $options[$shipmentnum * 7 + 3]
 } # }}}
 
-=item C<getdayofweek>
+=head2 C<getdayofweek>
 
 Operates the same as C<getshipname>, but returns which day of the week
 $object->getdelvdate() lands on numerically. (1 .. 6; 1 == Sunday,
@@ -677,7 +672,7 @@ sub getdayofweek # {{{
 	return $options[$shipmentnum * 7 + 4]
 } # }}}
 
-=item C<getnextdayam>
+=head2 C<getnextdayam>
 
 Operates the same as C<getshipname>, but returns whether or not
 the current option provides for next day AM delivery service.
@@ -700,7 +695,7 @@ sub getnextdayam # {{{
 	return $options[$shipmentnum * 7 + 5]
 } # }}}
 
-=item C<getestshipdays>
+=head2 C<getestshipdays>
 
 Operates the same as C<getshipname>, but returns estimated
 number of days required to ship the item.
@@ -723,7 +718,7 @@ sub getestshipdays # {{{
 	return $options[$shipmentnum * 7 + 6]
 } # }}}
 
-=item C<getconfirmation>
+=head2 C<getconfirmation>
 
 Returns whether or not delivery confirmation is included in price quotes.
 
@@ -741,7 +736,7 @@ sub getconfirmation # {{{
 	return $self->{'shipconfirm'};
 } # }}}
 
-=item C<getcomments>
+=head2 C<getcomments>
 
 Returns any extra comments Canada Post might include with your quote.
 

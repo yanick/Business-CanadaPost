@@ -1,5 +1,9 @@
 Revision history for Perl extension Business::CanadaPost.
 
+1.04  Sun Sep 25 20:15:54 2005
+	- Fixed some bugs for when Canada Post returns an error on the shipment.
+	- Fixed some bad POD markup.
+
 1.02  Thu Jun 09 22:10:17 2005
 	- Fixed some bugs including:
 		- Bad regex for CanadaPost comments.
