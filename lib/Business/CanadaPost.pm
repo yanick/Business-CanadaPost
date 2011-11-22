@@ -1,5 +1,3 @@
-#!/usr/bin/perl -w
-
 package Business::CanadaPost;
 
 use strict;
@@ -9,7 +7,7 @@ use Exporter;
 
 @ISA		= qw(Exporter);
 @EXPORT		= qw();
-$VERSION	= '1.04';
+$VERSION	= '1.05';
 
 =head1 NAME
 
@@ -450,8 +448,7 @@ sub getrequest # {{{
 	my $xmlfile = $self->buildXML() or return $self->_error($self->{'error'});
 
 	my $lwp = LWP::UserAgent->new();
-	my $ipaddress = $self->{'testing'} == 1 ? '206.191.4.228' : '216.191.36.73';
-	my $result = $lwp->post("http://$ipaddress:30000", { 'XMLRequest' => $xmlfile });
+	my $result = $lwp->post("http://sellonline.canadapost.ca:30000", { 'XMLRequest' => $xmlfile });
 	return $self->_error(8) unless $result->is_success;
 
 	my $raw_data = $result->content();
