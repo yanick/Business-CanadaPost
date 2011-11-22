@@ -1,5 +1,3 @@
-#!/usr/bin/perl -w
-
 package Business::CanadaPost;
 
 use strict;
@@ -9,7 +7,7 @@ use Exporter;
 
 @ISA		= qw(Exporter);
 @EXPORT		= qw();
-$VERSION	= '1.04';
+$VERSION	= '1.05';
 
 =head1 NAME
 
