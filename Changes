@@ -1,5 +1,9 @@
 Revision history for Perl extension Business::CanadaPost.
 
+1.06      2011-11-30
+    - Switch to dist::zilla.
+    - Add LWP dependency.
+
 1.05 21-11-2011 
     - Changed added of the Canada Post server.
 

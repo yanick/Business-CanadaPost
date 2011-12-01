@@ -1,8 +1,15 @@
-lib/Business/CanadaPost.pm
+Build.PL
+Changes
+INSTALL
+LICENSE
+MANIFEST
+META.json
+META.yml
+Makefile
 Makefile.PL
 README
+README.mkdn
+SIGNATURE
+lib/Business/CanadaPost.pm
+t/000-report-versions.t
 t/Business-CanadaPost.t
-Changes
-MANIFEST
-META.yml                                 Module YAML meta-data (added by MakeMaker)
-META.json                                Module JSON meta-data (added by MakeMaker)
