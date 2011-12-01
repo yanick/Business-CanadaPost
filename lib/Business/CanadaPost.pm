@@ -1,4 +1,5 @@
 package Business::CanadaPost;
+# ABSTRACT: Fetch shipping costs for Canada Post
 
 use strict;
 use LWP;
@@ -7,11 +8,6 @@ use Exporter;
 
 @ISA		= qw(Exporter);
 @EXPORT		= qw();
-$VERSION	= '1.05';
-
-=head1 NAME
-
-Business::CanadaPost - A module to fetch shipping costs for Canada Post.
 
 =head1 SYNOPSIS
 
@@ -134,6 +130,8 @@ readytoship specifies that you have the item already boxed or prepared for shipm
 
 If this is set to 0, then Canada Post server's will calculate the most appropriate box
 listed in your account profile, and use it for its dimensions and shipping cost.
+
+=back
 
 =cut
 
@@ -902,31 +900,12 @@ sub buildXML # {{{
 
 1;
 
-=head1 BUGS
+__END__
 
-Probably lots.  E-mail me at <pause@datademons.com> should you locate any.
-
-=head1 AUTHOR
-
-This module was written by Justin Wheeler <pause@datademons.com>  Feel free
-to e-mail me with any comments/questions/concerns/ideas/etc.
+=head1 SEE ALSO
 
 For more information on how Canada Post's XML shipping system works, please
 see http://206.191.4.228/DevelopersResources
 
-Copyright (C) 2005 Justin Wheeler / datademons
-
-This program is free software; you can redistribute it and/or modify it under
-the terms of the GNU General Public License as published by the Free Software
-Foundation, version 2.
-
-This program is distributed in the hope that it will be useful, but WITHOUT ANY
-WARRANTY; without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
-PARTICULAR PURPOSE. See the GNU General Public License for more details,
-available at http://www.gnu.org/licenses/gpl.html.
-
 =cut
 
-__END__
-
-# vim:foldmethod=marker:ts=8
