@@ -1,5 +1,5 @@
 package Business::CanadaPost;
-# ABSTRACT: Fetch shipping costs for Canada Post
+# ABSTRACT: Fetch shipping costs for Canada Post (DEPRECATED)
 
 use strict;
 use LWP;
@@ -36,6 +36,9 @@ use Exporter;
 	print "There are " . $shiprequest->getoptioncount() . " available shipping methods.\n";
 
 =head1 DESCRIPTION
+
+B<DEPRECATED>: The service this module is an API will be decommissioned 
+as of September 2025 (see L<https://sellonline-cybervente.canadapost-postescanada.ca/index-e.html>).
 
 Business::CanadaPost is a Perl library created to allow users to fetch real-time options and pricing quotes
 on shipments sent from Canada using Canada Post.
