@@ -765,14 +765,14 @@ sub _error # {{{
 				'You must specify your Canada Post merchant ID!',
 				'Failed sending to Canada Posts servers!');
 	my @frenchmessages  = ('Vous devez indiquer quelques pour transporter!',
-				'Vous devez indiquer un code postal valide pour les expéditions Canadiannes!',
-				'Vous devez indiquer un état pour les expéditions américaines!',
-				'Vous devez indiquer le pays que vous voulez embarquer à!',
-				'Les langues valides sont Anglaises et Françaises',
-				'Les unités valides sont métriques (cm et kg) ou impériales (po et lv)',
+				'Vous devez indiquer un code postal valide pour les expÃƒÂ©ditions Canadiannes!',
+				'Vous devez indiquer un ÃƒÂ©tat pour les expÃƒÂ©ditions amÃƒÂ©ricaines!',
+				'Vous devez indiquer le pays que vous voulez embarquer Ã !',
+				'Les langues valides sont Anglaises et FranÃ§aises',
+				'Les unitÃƒÂ©s valides sont mÃƒÂ©triques (cm et kg) ou impÃƒÂ©riales (po et lv)',
 				'Vous devez indiquer une taille, une largeur, et une longueur pour chaque article.',
 				'Vous devez indiquer votre identification du Postes Canada!',
-				'Envoi échoué aux serveurs du Postes Canada!');
+				'Envoi ÃƒÂ©chouÃƒÂ© aux serveurs du Postes Canada!');
 
 	if ($msgnum == 0)
 	{
@@ -878,7 +878,7 @@ sub buildXML # {{{
 
 	}
 	elsif (uc($self->{'country'}) eq 'UNITED STATES' or uc($self->{'country'} eq 'US')
-			or uc($self->{'country'}) eq 'ÉTATS-UNIS')
+			or uc($self->{'country'}) eq 'Ã‰TATS-UNIS')
 	{
 		#canada post says that all they require for now is country and provorstate; however,
 		#zipcodes will be used in the future...
