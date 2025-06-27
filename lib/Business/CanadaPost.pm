@@ -1,6 +1,7 @@
 package Business::CanadaPost;
+our $AUTHORITY = 'cpan:YANICK';
 # ABSTRACT: Fetch shipping costs for Canada Post (DEPRECATED)
-
+$Business::CanadaPost::VERSION = '1.07';
 use strict;
 use LWP;
 use vars qw($VERSION @ISA @EXPORT);
@@ -9,134 +10,6 @@ use Exporter;
 @ISA		= qw(Exporter);
 @EXPORT		= qw();
 
-=head1 SYNOPSIS
-
-	use Business::CanadaPost;
-	
-	#initialise object - specifying from postal code, and canada post merchant id
-	my $shiprequest = Business::CanadaPost->new(	merchantid => 'CPC_DEMO_XML',
-							frompostal => 'M1P1C0',
-							testing	   => 1			);
-
-	# add an item to be shipped
-	$shiprequest->additem(quantity 		=> 1,
-				height 		=> 60,
-				width  		=> 15,
-				length 		=> 60,
-				weight 		=> 7,
-				description 	=> 'box o stuff',
-				readytoship 	=> 1);
-
-	# set more parameters on the item being shipped
-	$shiprequest->setcountry('United States');
-	$shiprequest->setprovstate('New York');
-	$shiprequest->settopostalzip('11726');
-	$shiprequest->settocity('New York');
-	$shiprequest->getrequest() || print "Failed sending request: " . $shiprequest->geterror() . "\n"; 
-	print "There are " . $shiprequest->getoptioncount() . " available shipping methods.\n";
-
-=head1 DESCRIPTION
-
-B<DEPRECATED>: The service this module is an API will be decommissioned 
-as of September 2025 (see L<https://sellonline-cybervente.canadapost-postescanada.ca/index-e.html>).
-
-Business::CanadaPost is a Perl library created to allow users to fetch real-time options and pricing quotes
-on shipments sent from Canada using Canada Post.
-
-To get off of the development server, you'll need to get an account from Canada Post's "Sell Online" service.
-While testing, use user id CPC_DEMO_XML and specify a parameter of 'testing' with a value of 1 to the new()
-constructor, so it knows to use Canada Post's devel server.  If you don't, and don't have an account, you'll
-only receive errors.
-
-=head1 PREREQUISITES
-
-This module requires C<strict>, C<Exporter>, and C<LWP>.
-
-=head1 EXPORT
-
-None.
-
-=head1 CONSTRUCTOR
-
-=head2 C<new(options)>
-
-Creates a new Business::CanadaPost object.  Different objects available are:
-
-=over 8
-
-=item language
-
-'en' for English, and 'fr' for French. (Default: en)
-
-=item frompostalcode
-
-This is used to override the setting in our sell online profile for the from
-address you would be shipping from.  Format is A1A1A1 (A being any upper-case
-character between A-Z, and 1 being any digit 0-9)
-
-If not specified, it will default to your setting in your Canada Post Sell
-Online(tm) profile.
-
-=item turnaroundtime
-
-Your turnaround time in hours.  This is the amount of time between receiving
-the order and shipping it out.  It is used to create a shipping and delivery
-date for the item.  If none is specified, it will default to what you have set
-in your profile.
-
-If you have nothing set in your profile, it will assume you are shipping next-day.
-
-(Default: none)
-
-=item merchantid
-
-This is your merchant ID assigned to you by Canada Post.  It usually begins with
-CPC_.  You can use CPC_DEMO_XML if you're testing and using Canada Post's test
-servers. (Default: none.  You need to set this or the module will return a fatal
-error.)
-
-=item totalprice
-
-Total value of the shipment you're mailing.  This is used to calculate whether or
-not a signature will be required, and whether it will need to include more insurance
-to cover the item (beyond the $100 included in the original shipment.) (Default: 0.00)
-
-=item units
-
-Possible values are 'metric' and 'imperial'.
-
-If set to metric, you will be specifying height, length, and width in cm, and
-weight in kg.
-
-If set to imperial, you will be specifying height, length, and width in in, and
-weight in lb.
-
-(Default: metric)
-
-=item testing
- 
-Possible values: 1 or 0.
-
-Specifies whether you're using a production account, or a testing account.  If you're
-in testing mode, you'll be connecting to Canada Post's test servers, which run on
-less stable hardware, on a slower link to the Internet, and are rate-throttled.
-
-(Default: 0)
-
-=item items
-
-An array containing the items in your shipment.  Array elements are:
-
-(quantity, weight, length, width, height, description, readytoship [1 or 0])
-
-readytoship specifies that you have the item already boxed or prepared for shipment.
-
-If this is set to 0, then Canada Post server's will calculate the most appropriate box
-listed in your account profile, and use it for its dimensions and shipping cost.
-
-=back
-
-=cut
 
 sub new # {{{
 {
@@ -163,20 +36,6 @@ sub new # {{{
 	return $self;
 } # }}}
 
-=head1 OBJECT METHODS
-
-Most errors are fatal.  The tool tries to guess for you if a value seems
-out of whack.
-
-=head2 C<geterror>
-
-Used to fetch the error set when a function return 0 for failure.
-
-Example:
-
-	$object->getrequest or print "Error: " . $object->geterror() . "\n";
-
-=cut
 
 sub geterror # {{{
 {
@@ -186,15 +45,6 @@ sub geterror # {{{
 	return $error;
 } # }}}
 
-=head2 C<setlanguage>
-
-Used to change the language.
-
-Example:
-
-	$object->setlanguage('fr'); # changes messages to french.
-
-=cut
 sub setlanguage # {{{
 {
 	my ($self, $lang) = @_;
@@ -205,15 +55,6 @@ sub setlanguage # {{{
 	$self->{'language'} = $lang || 'en';
 } # }}}
 
-=head2 C<settocity>
-
-Specifies city being shipped to.
-
-Example:
-
-	$object->settocity('New York');
-
-=cut
 
 sub settocity # {{{
 
@@ -222,15 +63,6 @@ sub settocity # {{{
 	$self->{'city'} = $city;
 } # }}}
 
-=head2 C<settesting>
-
-Specifies whether account is in testing.
-
-Example:
-
-	$object->settesting(1);
-
-=cut
 
 sub settesting # {{{
  
@@ -240,15 +72,6 @@ sub settesting # {{{
 	$self->{'testing'} = $testing;
 } # }}}
 
-=head2 C<setcountry>
-
-Specifies country being mailed to.
-
-Example:
-
-	$object->setcountry('United States');
-
-=cut
 
 sub setcountry # {{{
 
@@ -257,15 +80,6 @@ sub setcountry # {{{
 	$self->{'country'} = $country;
 } # }}}
 
-=head2 C<setmerchantid>
-
-Specifies Canada Post merchant ID.
-
-Example:
-
-	$object->setmerchantid('CPC_DEMO_XML');
-
-=cut
 
 sub setmerchantid # {{{
 
@@ -275,15 +89,6 @@ sub setmerchantid # {{{
 	$self->{'merchantid'} = $id || ' ';
 } # }}}
 
-=head2 C<setunits>
-
-Specifies imperial or metric measurements.
-
-Example:
-
-	$object->setunits('imperial');
-
-=cut
 
 sub setunits # {{{
 
@@ -296,15 +101,6 @@ sub setunits # {{{
 	$self->{'units'} = $units;
 } # }}}
 
-=head2 C<setfrompostalcode>
-
-Specifies postal code item is being shipped from.
-
-Example:
-
-	$object->setfrompostalcode(''); # will reset postal code back to default set in canada post profile
-
-=cut
 
 sub setfrompostalcode # {{{
 
@@ -314,15 +110,6 @@ sub setfrompostalcode # {{{
 	$self->{'frompostalcode'} = $code || ' ';
 } # }}}
 
-=head2 C<settopostalcode>
-
-Specifies postal code/zip code item is being shipped to.
-
-Example:
-
-	$object->settopostalcode('N2G5M4');
-
-=cut
 
 sub settopostalzip # {{{
 
@@ -332,15 +119,6 @@ sub settopostalzip # {{{
 	$self->{'postalcode'} = $code || ' ';
 } # }}}
 
-=head2 C<setprovstate>
-
-Specifies province/state being shipped to.
-
-Example:
-
-	$object->settopostalcode('Ontario');
-
-=cut
 
 sub setprovstate # {{{
 
@@ -349,15 +127,6 @@ sub setprovstate # {{{
 	$self->{'provstate'} = $province || ' ';
 } # }}}
 
-=head2 C<setturnaroundtime>
-
-Specifies turnaround time in hours.
-
-Example:
-
-	$object->setturnaroundtime(24);
-
-=cut
 
 sub setturnaroundtime # {{{
 
@@ -366,15 +135,6 @@ sub setturnaroundtime # {{{
 	$self->{'turnaroundtime'} = $code || ' ';
 } # }}}
 
-=head2 C<settotalprice>
-
-Specifies total value of items being shipped.
-
-Example:
-
-	$object->settotalprice(5.50);
-
-=cut
 
 sub settotalprice # {{{
 
@@ -383,26 +143,6 @@ sub settotalprice # {{{
 	$self->{'totalprice'} = sprintf('%01.2f', $price) || '0.00';
 } # }}}
 
-=head2 C<additem>
-
-Adds an item to be shipped to the request.
-
-Example:
-
-	$object->additem(length => 5,
-			 height => 3,
-			 width  => 2,
-			 weight => 5,
-			 description => "box of cookies",
-			 readytoship => 1,
-			 quantity => 1);
-
-Weight, length, height, and width are the only requirements.
-
-If not specified, quantity will default to 1, readytoship will
-default to 0, and description will default to an empty string.
-
-=cut
 
 sub additem # {{{
 {
@@ -431,17 +171,6 @@ sub additem # {{{
 	$self->{'items'} = \@currentitems;
 } # }}}
 
-=head2 C<getrequest>
-
-Builds request, sends it to Canada Post, and parses the results.
-
-Example:
-
-	$object->getrequest();
-
-returns 1 on success.
-
-=cut
 
 sub getrequest # {{{
 {
@@ -506,16 +235,6 @@ sub parseXML # {{{
 	return 1;
 } # }}}
 
-=head2 C<getoptioncount>
-
-Returns number of available shipping options.
-
-Example:
-
-	my $available_options = $object->getoptioncount();
-
-
-=cut
 
 sub getoptioncount # {{{
 {
@@ -523,15 +242,6 @@ sub getoptioncount # {{{
 	return $self->{'shippingoptioncount'};
 } # }}}
 
-=head2 C<getsignature>
-
-Returns 1 or 0 based on whether or not a signature would be required for these deliveries.
-
-Example:
-
-	my $signature_required = $object->getsignature();
-
-=cut
 
 
 sub getsignature # {{{
@@ -541,15 +251,6 @@ sub getsignature # {{{
 	return $self->{'signature'};
 } # }}}
 
-=head2 C<getinsurance>
-
-Returns 1 or 0 based on whether or not extra insurance coverage is required (and included) in prices.
-
-Example:
-
-	my $insurance_included = $object->getinsurance();
-
-=cut
 
 sub getinsurance # {{{
 
@@ -559,16 +260,6 @@ sub getinsurance # {{{
 } # }}}
 
 
-=head2 C<getshipname>
-
-Receives an option number between 1 and $object->getoptioncount() and returns that
-option's name.
-
-Example:
-
-	print "First option available is: " . $object->getshipname(1) . "\n";
-
-=cut
 
 sub getshipname # {{{
 
@@ -581,17 +272,6 @@ sub getshipname # {{{
 	return $options[$shipmentnum * 7]
 } # }}}
 
-=head2 C<getshiprate>
-
-Operates the same as C<getshipname>, but returns cost of that shipping method.
-
-Example:
-
-	print "First option would cost: " . $object->getshiprate(1) . " to ship.\n";
-
-returns 1 on success.
-
-=cut
 
 sub getshiprate # {{{
 
@@ -603,15 +283,6 @@ sub getshiprate # {{{
 	return $options[$shipmentnum * 7 + 1]
 } # }}}
 
-=head2 C<getshipdate>
-
-Operates the same as C<getshipname>, but returns assumed shipment date.
-
-Example:
-
-	print "Item would be shipped out on " . $object->getshipdate(1) . "\n";
-
-=cut
 
 
 sub getshipdate # {{{
@@ -624,17 +295,6 @@ sub getshipdate # {{{
 	return $options[$shipmentnum * 7 + 2]
 } # }}}
 
-=head2 C<getdelvdate>
-
-Operates the same as C<getshipname>, but returns when the approximate
-delivery date would be based on a shipping date of $object->getshipdate();
-
-Example:
-
-	print "Assuming a delivery date of " . $object->getshipdate(1) .
-		", this item would arrive on: " . $object->getdelvdate(1) . "\n";
-
-=cut
 
 sub getdelvdate # {{{
 
@@ -646,18 +306,6 @@ sub getdelvdate # {{{
 	return $options[$shipmentnum * 7 + 3]
 } # }}}
 
-=head2 C<getdayofweek>
-
-Operates the same as C<getshipname>, but returns which day of the week
-$object->getdelvdate() lands on numerically. (1 .. 6; 1 == Sunday,
-6 == Saturday)
-
-Example:
-
-	print "Your item would likely be delivered on the " .
-		$object->getdayofweek(1) . " day of the week.\n";
-
-=cut
 
 
 sub getdayofweek # {{{
@@ -670,17 +318,6 @@ sub getdayofweek # {{{
 	return $options[$shipmentnum * 7 + 4]
 } # }}}
 
-=head2 C<getnextdayam>
-
-Operates the same as C<getshipname>, but returns whether or not
-the current option provides for next day AM delivery service.
-
-Example:
-
-	printf("This item is %savailable for next day delivery\n",
-			$object->getnextdayam(1) == 1 ? '' : 'NOT ');
-
-=cut
 
 
 sub getnextdayam # {{{
@@ -693,17 +330,6 @@ sub getnextdayam # {{{
 	return $options[$shipmentnum * 7 + 5]
 } # }}}
 
-=head2 C<getestshipdays>
-
-Operates the same as C<getshipname>, but returns estimated
-number of days required to ship the item.
-
-Example:
-
-	print "This shipping method would take approximately: " . $object->getestshipdays() .
-		" days to arrive.\n";
-
-=cut
 
 
 sub getestshipdays # {{{
@@ -716,15 +342,6 @@ sub getestshipdays # {{{
 	return $options[$shipmentnum * 7 + 6]
 } # }}}
 
-=head2 C<getconfirmation>
-
-Returns whether or not delivery confirmation is included in price quotes.
-
-Example:
-
-	my $confirmation_included = $object->getconfirmation();
-
-=cut
 
 
 sub getconfirmation # {{{
@@ -734,15 +351,6 @@ sub getconfirmation # {{{
 	return $self->{'shipconfirm'};
 } # }}}
 
-=head2 C<getcomments>
-
-Returns any extra comments Canada Post might include with your quote.
-
-Example:
-
-	my $extra_info = $object->getcomments();
-
-=cut
 
 sub getcomments # {{{
 
@@ -905,10 +513,408 @@ sub buildXML # {{{
 
 __END__
 
+=pod
+
+=encoding UTF-8
+
+=head1 NAME
+
+Business::CanadaPost - Fetch shipping costs for Canada Post (DEPRECATED)
+
+=head1 VERSION
+
+version 1.07
+
+=head1 SYNOPSIS
+
+	use Business::CanadaPost;
+	
+	#initialise object - specifying from postal code, and canada post merchant id
+	my $shiprequest = Business::CanadaPost->new(	merchantid => 'CPC_DEMO_XML',
+							frompostal => 'M1P1C0',
+							testing	   => 1			);
+
+	# add an item to be shipped
+	$shiprequest->additem(quantity 		=> 1,
+				height 		=> 60,
+				width  		=> 15,
+				length 		=> 60,
+				weight 		=> 7,
+				description 	=> 'box o stuff',
+				readytoship 	=> 1);
+
+	# set more parameters on the item being shipped
+	$shiprequest->setcountry('United States');
+	$shiprequest->setprovstate('New York');
+	$shiprequest->settopostalzip('11726');
+	$shiprequest->settocity('New York');
+	$shiprequest->getrequest() || print "Failed sending request: " . $shiprequest->geterror() . "\n"; 
+	print "There are " . $shiprequest->getoptioncount() . " available shipping methods.\n";
+
+=head1 DESCRIPTION
+
+B<DEPRECATED>: The service this module is an API will be decommissioned 
+as of September 2025 (see L<https://sellonline-cybervente.canadapost-postescanada.ca/index-e.html>).
+
+Business::CanadaPost is a Perl library created to allow users to fetch real-time options and pricing quotes
+on shipments sent from Canada using Canada Post.
+
+To get off of the development server, you'll need to get an account from Canada Post's "Sell Online" service.
+While testing, use user id CPC_DEMO_XML and specify a parameter of 'testing' with a value of 1 to the new()
+constructor, so it knows to use Canada Post's devel server.  If you don't, and don't have an account, you'll
+only receive errors.
+
+=head1 PREREQUISITES
+
+This module requires C<strict>, C<Exporter>, and C<LWP>.
+
+=head1 EXPORT
+
+None.
+
+=head1 CONSTRUCTOR
+
+=head2 C<new(options)>
+
+Creates a new Business::CanadaPost object.  Different objects available are:
+
+=over 8
+
+=item language
+
+'en' for English, and 'fr' for French. (Default: en)
+
+=item frompostalcode
+
+This is used to override the setting in our sell online profile for the from
+address you would be shipping from.  Format is A1A1A1 (A being any upper-case
+character between A-Z, and 1 being any digit 0-9)
+
+If not specified, it will default to your setting in your Canada Post Sell
+Online(tm) profile.
+
+=item turnaroundtime
+
+Your turnaround time in hours.  This is the amount of time between receiving
+the order and shipping it out.  It is used to create a shipping and delivery
+date for the item.  If none is specified, it will default to what you have set
+in your profile.
+
+If you have nothing set in your profile, it will assume you are shipping next-day.
+
+(Default: none)
+
+=item merchantid
+
+This is your merchant ID assigned to you by Canada Post.  It usually begins with
+CPC_.  You can use CPC_DEMO_XML if you're testing and using Canada Post's test
+servers. (Default: none.  You need to set this or the module will return a fatal
+error.)
+
+=item totalprice
+
+Total value of the shipment you're mailing.  This is used to calculate whether or
+not a signature will be required, and whether it will need to include more insurance
+to cover the item (beyond the $100 included in the original shipment.) (Default: 0.00)
+
+=item units
+
+Possible values are 'metric' and 'imperial'.
+
+If set to metric, you will be specifying height, length, and width in cm, and
+weight in kg.
+
+If set to imperial, you will be specifying height, length, and width in in, and
+weight in lb.
+
+(Default: metric)
+
+=item testing
+
+Possible values: 1 or 0.
+
+Specifies whether you're using a production account, or a testing account.  If you're
+in testing mode, you'll be connecting to Canada Post's test servers, which run on
+less stable hardware, on a slower link to the Internet, and are rate-throttled.
+
+(Default: 0)
+
+=item items
+
+An array containing the items in your shipment.  Array elements are:
+
+(quantity, weight, length, width, height, description, readytoship [1 or 0])
+
+readytoship specifies that you have the item already boxed or prepared for shipment.
+
+If this is set to 0, then Canada Post server's will calculate the most appropriate box
+listed in your account profile, and use it for its dimensions and shipping cost.
+
+=back
+
+=head1 OBJECT METHODS
+
+Most errors are fatal.  The tool tries to guess for you if a value seems
+out of whack.
+
+=head2 C<geterror>
+
+Used to fetch the error set when a function return 0 for failure.
+
+Example:
+
+	$object->getrequest or print "Error: " . $object->geterror() . "\n";
+
+=head2 C<setlanguage>
+
+Used to change the language.
+
+Example:
+
+	$object->setlanguage('fr'); # changes messages to french.
+
+=head2 C<settocity>
+
+Specifies city being shipped to.
+
+Example:
+
+	$object->settocity('New York');
+
+=head2 C<settesting>
+
+Specifies whether account is in testing.
+
+Example:
+
+	$object->settesting(1);
+
+=head2 C<setcountry>
+
+Specifies country being mailed to.
+
+Example:
+
+	$object->setcountry('United States');
+
+=head2 C<setmerchantid>
+
+Specifies Canada Post merchant ID.
+
+Example:
+
+	$object->setmerchantid('CPC_DEMO_XML');
+
+=head2 C<setunits>
+
+Specifies imperial or metric measurements.
+
+Example:
+
+	$object->setunits('imperial');
+
+=head2 C<setfrompostalcode>
+
+Specifies postal code item is being shipped from.
+
+Example:
+
+	$object->setfrompostalcode(''); # will reset postal code back to default set in canada post profile
+
+=head2 C<settopostalcode>
+
+Specifies postal code/zip code item is being shipped to.
+
+Example:
+
+	$object->settopostalcode('N2G5M4');
+
+=head2 C<setprovstate>
+
+Specifies province/state being shipped to.
+
+Example:
+
+	$object->settopostalcode('Ontario');
+
+=head2 C<setturnaroundtime>
+
+Specifies turnaround time in hours.
+
+Example:
+
+	$object->setturnaroundtime(24);
+
+=head2 C<settotalprice>
+
+Specifies total value of items being shipped.
+
+Example:
+
+	$object->settotalprice(5.50);
+
+=head2 C<additem>
+
+Adds an item to be shipped to the request.
+
+Example:
+
+	$object->additem(length => 5,
+			 height => 3,
+			 width  => 2,
+			 weight => 5,
+			 description => "box of cookies",
+			 readytoship => 1,
+			 quantity => 1);
+
+Weight, length, height, and width are the only requirements.
+
+If not specified, quantity will default to 1, readytoship will
+default to 0, and description will default to an empty string.
+
+=head2 C<getrequest>
+
+Builds request, sends it to Canada Post, and parses the results.
+
+Example:
+
+	$object->getrequest();
+
+returns 1 on success.
+
+=head2 C<getoptioncount>
+
+Returns number of available shipping options.
+
+Example:
+
+	my $available_options = $object->getoptioncount();
+
+=head2 C<getsignature>
+
+Returns 1 or 0 based on whether or not a signature would be required for these deliveries.
+
+Example:
+
+	my $signature_required = $object->getsignature();
+
+=head2 C<getinsurance>
+
+Returns 1 or 0 based on whether or not extra insurance coverage is required (and included) in prices.
+
+Example:
+
+	my $insurance_included = $object->getinsurance();
+
+=head2 C<getshipname>
+
+Receives an option number between 1 and $object->getoptioncount() and returns that
+option's name.
+
+Example:
+
+	print "First option available is: " . $object->getshipname(1) . "\n";
+
+=head2 C<getshiprate>
+
+Operates the same as C<getshipname>, but returns cost of that shipping method.
+
+Example:
+
+	print "First option would cost: " . $object->getshiprate(1) . " to ship.\n";
+
+returns 1 on success.
+
+=head2 C<getshipdate>
+
+Operates the same as C<getshipname>, but returns assumed shipment date.
+
+Example:
+
+	print "Item would be shipped out on " . $object->getshipdate(1) . "\n";
+
+=head2 C<getdelvdate>
+
+Operates the same as C<getshipname>, but returns when the approximate
+delivery date would be based on a shipping date of $object->getshipdate();
+
+Example:
+
+	print "Assuming a delivery date of " . $object->getshipdate(1) .
+		", this item would arrive on: " . $object->getdelvdate(1) . "\n";
+
+=head2 C<getdayofweek>
+
+Operates the same as C<getshipname>, but returns which day of the week
+$object->getdelvdate() lands on numerically. (1 .. 6; 1 == Sunday,
+6 == Saturday)
+
+Example:
+
+	print "Your item would likely be delivered on the " .
+		$object->getdayofweek(1) . " day of the week.\n";
+
+=head2 C<getnextdayam>
+
+Operates the same as C<getshipname>, but returns whether or not
+the current option provides for next day AM delivery service.
+
+Example:
+
+	printf("This item is %savailable for next day delivery\n",
+			$object->getnextdayam(1) == 1 ? '' : 'NOT ');
+
+=head2 C<getestshipdays>
+
+Operates the same as C<getshipname>, but returns estimated
+number of days required to ship the item.
+
+Example:
+
+	print "This shipping method would take approximately: " . $object->getestshipdays() .
+		" days to arrive.\n";
+
+=head2 C<getconfirmation>
+
+Returns whether or not delivery confirmation is included in price quotes.
+
+Example:
+
+	my $confirmation_included = $object->getconfirmation();
+
+=head2 C<getcomments>
+
+Returns any extra comments Canada Post might include with your quote.
+
+Example:
+
+	my $extra_info = $object->getcomments();
+
 =head1 SEE ALSO
 
 For more information on how Canada Post's XML shipping system works, please
 see http://206.191.4.228/DevelopersResources
 
-=cut
+=head1 AUTHORS
 
+=over 4
+
+=item *
+
+Justin Wheeler
+
+=item *
+
+Yanick Champoux <yanick@cpan.org>
+
+=back
+
+=head1 COPYRIGHT AND LICENSE
+
+This software is Copyright (c) 2025, 2011 by Justin Wheeler.
+
+This is free software, licensed under:
+
+  The GNU General Public License, Version 2, June 1991
+
+=cut
